@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Twitter Streaming Tutorial</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.2/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.0.2/dist/leaflet.js"></script>  
+    <style>
+    	body {
+    		font-family: sans-serif;
+    	}
+
+    	.center-text {
+    		text-align: center;
+    	}
+
+    	#left {
+    		width: 50%;
+    		position: absolute;
+    		left: 0;
+    		top: 0;
+    	}
+
+    	#right {
+    		width: 50%;
+    		position: absolute;
+    		right: 0;
+    		top: 0;
+    	}
+
+    	#map {
+    		height: 100vh;
+    	}
+
+    	.tweet-container { 
+    		width: 90%;
+    		margin: auto;
+    	}
+    	.tweet-container p {
+	    	background-color: #f7f7f7;
+		   	border-radius: 20px;
+		    border: 2px solid #00aced;
+		    padding: 5px; 
+    	}
+
+    	.stream-stats-container p{
+    		font-size: 15pt;
+    		text-align: center;
+    	}
+
+    	.stream-stats-container h2 {
+    		text-align: center;
+    	}
+
+    	.stream-stats-container p {
+    		font-size: 15pt;
+    	}
+
+    	.stat-box {
+    		margin: auto;
+    		width: 90%;
+    	}
+
+    	.stat-box p {
+    		padding: 15px;
+    	}
+    </style>
+</head>
+<body>
+
+	<div id ="left">
+	    <h1 class="center-text">Live streaming of Tweets in Oregon</h1>
+	    <p style="font-style: italic" class="center-text">But sometimes not Oregon (because Oregon isn't a square)</p>
+	    <p style="font-style:italic" class="center-text">And often without coordinates to draw on the map (because 'place' != 'coordinates' when tweeting)</p>
+
+	    <div class="stream-stats-container">
+	    	<div class="stat-box">
+	    		<p>seconds watched:</p>
+	    		<h2 id="seconds-watched"></h2>
+	    	</div>
+	    	<div class="stat-box">
+	    		<p># of tweets:</p>
+	    		<h2 id ="total-tweets"></h2>
+	    	</div>
+	    	<div class="stat-box">
+	    		<p>tweets per second:</p>
+	    		<h2 id ="tps"></h2>
+	    	</div>
+		</div>
+
+		<div class="tweet-container"></div>
+	</div>
+
+	<div id="right">
+		<div id="map"></div>
+	</div>
+
+    
+
+    <script type="text/javascript">
+    // initialize var for tweet stats
+    var timeInit = $.now(); // milliseconds since epoch
+    var timeTotal;
+    var tweetsTotal = 0;
+    var tps;
+
+    //declare empy _socket var
+    var _socket = null;
+
+	var map = L.map('map', {center: [42.74,-119.89], zoom: 6});
+	L.tileLayer(('https://api.mapbox.com/styles/v1/connord/ciy3qjp5800012spckvsivlx8/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1IjoiY29ubm9yZCIsImEiOiJjaXIya3VjYXgwMDA4ZnBubWMwbGM4aW4yIn0.OmX2i2_gUHm12VynRff6qA'), 
+	{maxZoom: 12, minZoom: 0, attribution: 'Mapbox &copy | OpenStreetMaps &copy'}).addTo(map);
+
+	$(function() {
+	    if(io !== undefined) {
+	        // Create connection with Heroku server
+	        _socket = io.connect(":80/");
+
+	        // Listener for the "new tweet" signal for when a new tweet comes into the stream
+	        _socket.on("new tweet", function(tweet) {
+	        	// add tweet to tweet list container with info about the tweet: username & place
+	        	$(".tweet-container").prepend("<p>" + tweet.text + "</br>" + "User: " + tweet.user.name + "<br />Place: " + tweet.place.name + "</p>");
+
+	        	// put tweet on map if it has legit coordinates
+	        	if (tweet.coordinates == null) {
+	        		console.log("Null coordinates on tweet.");
+	        	}
+	        	else {
+	        		//add geoJson point to map
+	        		L.geoJSON(tweet.coordinates, {
+	        			onEachFeature: function(feature, layer) {
+	        				layer.bindPopup(tweet.text + "</br>" + "Place: " + tweet.place.name);
+	        			}
+	        		}).addTo(map);
+					
+					console.log("======THERE SHOULD BE A MARKER ON THE MAP======");
+				};
+
+	            // tweet stats
+	            timeTotal = ($.now() - timeInit) / 1000;
+	            tweetsTotal += 1;
+	            tps = tweetsTotal/timeTotal;
+
+	            $("#seconds-watched").html(timeTotal); 
+	            $("#total-tweets").html(tweetsTotal); 
+	            $("#tps").html(tps);
+	        });
+
+	        _socket.on("connected", function(r) {
+	            //$("head").find("title").html("Tracking now: " + r.tracking());
+
+	            // Here the client tells the server to "start stream"
+	            emitMsj("start stream");
+	        });
+	    }
+	});
+
+	// tell the server whatever we want to
+	function emitMsj(signal, o) {
+	    if(_socket) {
+	        _socket.emit(signal, o)
+	    }
+	    else {
+	        alert("Ahh man -- Socket.io didn't start");
+	    }
+	}
+
+	//resize the map with window height height
+    function resizeMapDiv() {
+        var viewport_height = $(window).height();
+        $('#map').css({'height': (viewport_height) + 'px'});
+    }
+    $(document).ready(function() {
+        resizeMapDiv();
+        window.onresize = function(e) {
+            resizeMapDiv();
+        }
+    });
+    </script>
+</body>
+</html>

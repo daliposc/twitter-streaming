@@ -1,0 +1,11 @@
+{
+    "name": "twitter-streaming-tut",
+    "description" : "A Node.js, socket.io demo.",
+    "dependencies": {
+        "socket.io": "1.7.2",
+        "node-tweet-stream": "2.0.1"
+    },
+    "engines" : {
+        "node" : "6.9.5"
+    }
+}
