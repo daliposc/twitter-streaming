@@ -1,3 +1,5 @@
+***Note:** Web application is broken as of the latest check on 11/16/2019*
+
 # twitter-streaming
 Streams and maps live tweets using Node.js, sockets.io, Leaflet, and Heroku (to do all the publishing for me)
 
